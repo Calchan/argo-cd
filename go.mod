@@ -114,6 +114,7 @@ require (
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/antonmedv/expr v1.9.0
+	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/coreos/go-oidc/v3 v3.4.0
 	github.com/go-redis/cache/v9 v9.0.0
 	github.com/robfig/cron/v3 v3.0.1

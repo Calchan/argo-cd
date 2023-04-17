@@ -56,6 +56,7 @@ func NewCommand() *cobra.Command {
 		debugLog               bool
 		dryRun                 bool
 		enableProgressiveSyncs bool
+		enableNewGitFileGlobbing bool
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -128,7 +129,7 @@ func NewCommand() *cobra.Command {
 			terminalGenerators := map[string]generators.Generator{
 				"List":                    generators.NewListGenerator(),
 				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
-				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, getSubmoduleEnabled())),
+				"Git":                     generators.NewGitGenerator(services.NewArgoCDService(argoCDDB, askPassServer, getSubmoduleEnabled()), enableNewGitFileGlobbing),
 				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth),
 				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
 				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth),
@@ -206,6 +207,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&dryRun, "dry-run", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN", false), "Enable dry run mode")
 	command.Flags().BoolVar(&enableProgressiveSyncs, "enable-progressive-syncs", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS", false), "Enable use of the experimental progressive syncs feature.")
+	command.Flags().BoolVar(&enableNewGitFileGlobbing, "enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
 	return &command
 }
 

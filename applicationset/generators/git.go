@@ -22,11 +22,13 @@ var _ Generator = (*GitGenerator)(nil)
 
 type GitGenerator struct {
 	repos services.Repos
+	enableNewGitFileGlobbing bool
 }
 
-func NewGitGenerator(repos services.Repos) Generator {
+func NewGitGenerator(repos services.Repos, enableNewGitFileGlobbing bool) Generator {
 	g := &GitGenerator{
 		repos: repos,
+		enableNewGitFileGlobbing: enableNewGitFileGlobbing,
 	}
 	return g
 }
@@ -100,7 +102,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	// Get all files that match the requested path string, removing duplicates
 	allFiles := make(map[string][]byte)
 	for _, requestedPath := range appSetGenerator.Git.Files {
-		files, err := g.repos.GetFiles(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, requestedPath.Path)
+		files, err := g.repos.GetFiles(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, requestedPath.Path, g.enableNewGitFileGlobbing)
 		if err != nil {
 			return nil, err
 		}

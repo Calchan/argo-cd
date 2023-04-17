@@ -163,7 +163,7 @@ func getMockClusterGenerator() Generator {
 func getMockGitGenerator() Generator {
 	argoCDServiceMock := testutils.ArgoCDServiceMock{Mock: &mock.Mock{}}
 	argoCDServiceMock.Mock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return([]string{"app1", "app2", "app_3", "p1/app4"}, nil)
-	var gitGenerator = NewGitGenerator(argoCDServiceMock)
+	var gitGenerator = NewGitGenerator(argoCDServiceMock, false)
 	return gitGenerator
 }
 

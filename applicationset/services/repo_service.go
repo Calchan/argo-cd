@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/bmatcuk/doublestar/v4"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/git"
@@ -27,7 +30,7 @@ type argoCDService struct {
 type Repos interface {
 
 	// GetFiles returns content of files (not directories) within the target repo
-	GetFiles(ctx context.Context, repoURL string, revision string, pattern string) (map[string][]byte, error)
+	GetFiles(ctx context.Context, repoURL string, revision string, pattern string, enableNewGitFileGlobbing bool) (map[string][]byte, error)
 
 	// GetDirectories returns a list of directories (not files) within the target repo
 	GetDirectories(ctx context.Context, repoURL string, revision string) ([]string, error)
@@ -42,7 +45,7 @@ func NewArgoCDService(db db.ArgoDB, gitCredStore git.CredsStore, submoduleEnable
 	}
 }
 
-func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision string, pattern string) (map[string][]byte, error) {
+func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision string, pattern string, enableNewGitFileGlobbing bool) (map[string][]byte, error) {
 	repo, err := a.repositoriesDB.GetRepository(ctx, repoURL)
 	if err != nil {
 		return nil, fmt.Errorf("Error in GetRepository: %w", err)
@@ -59,7 +62,20 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision s
 		return nil, err
 	}
 
-	paths, err := gitRepoClient.LsFiles(pattern)
+	// Git files globbing can trigger errors but we keep it as default in case users have been relying on it
+	var paths []string
+	if enableNewGitFileGlobbing {
+		// This is the new, safer way
+		err = os.Chdir(gitRepoClient.Root())
+		if err != nil {
+			return nil, err
+		}
+		paths, err = doublestar.FilepathGlob(pattern)
+		log.Debugf("%s: %s", pattern, paths)
+	} else {
+		// This is the old and default way of finding files that match the pattern
+		paths, err = gitRepoClient.LsFiles(pattern)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("Error during listing files of local repo: %w", err)
 	}

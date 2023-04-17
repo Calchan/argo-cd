@@ -58,7 +58,7 @@ func TestRequeueAfter(t *testing.T) {
 	terminalGenerators := map[string]generators.Generator{
 		"List":                    generators.NewListGenerator(),
 		"Clusters":                generators.NewClusterGenerator(k8sClient, ctx, appClientset, "argocd"),
-		"Git":                     generators.NewGitGenerator(mockServer),
+		"Git":                     generators.NewGitGenerator(mockServer, false),
 		"SCMProvider":             generators.NewSCMProviderGenerator(fake.NewClientBuilder().WithObjects(&corev1.Secret{}).Build(), generators.SCMAuthProviders{}),
 		"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, fakeDynClient, appClientset, "argocd"),
 		"PullRequest":             generators.NewPullRequestGenerator(k8sClient, generators.SCMAuthProviders{}),
@@ -161,7 +161,7 @@ func (a argoCDServiceMock) GetApps(ctx context.Context, repoURL string, revision
 	return args.Get(0).([]string), args.Error(1)
 }
 
-func (a argoCDServiceMock) GetFiles(ctx context.Context, repoURL string, revision string, pattern string) (map[string][]byte, error) {
+func (a argoCDServiceMock) GetFiles(ctx context.Context, repoURL string, revision string, pattern string, enableNewGitFileGlobbing bool) (map[string][]byte, error) {
 	args := a.mock.Called(ctx, repoURL, revision, pattern)
 
 	return args.Get(0).(map[string][]byte), args.Error(1)

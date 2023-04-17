@@ -212,7 +212,174 @@ func TestGetFiles(t *testing.T) {
 				repositoriesDB: argocdRepositoryMock,
 			}
 
-			getPathsRes, err := argocd.GetFiles(context.Background(), cc.repoURL, cc.revision, cc.pattern)
+			getPathsRes, err := argocd.GetFiles(context.Background(), cc.repoURL, cc.revision, cc.pattern, false)
+
+			if cc.expectedError == nil {
+
+				assert.NoError(t, err)
+				for _, path := range cc.expectSubsetOfPaths {
+					assert.Contains(t, getPathsRes, path, "Unable to locate path: %s", path)
+				}
+
+				for _, shouldNotContain := range cc.doesNotContainPaths {
+					assert.NotContains(t, getPathsRes, shouldNotContain, "GetPaths should not contain %s", shouldNotContain)
+				}
+
+			} else {
+				assert.EqualError(t, err, cc.expectedError.Error())
+			}
+		})
+	}
+}
+
+func TestGetFileNewGlobbing(t *testing.T) {
+
+	// Hardcode a specific commit, so that changes to argoproj/argocd-example-apps/ don't break our tests
+	// "chore: downgrade kustomize guestbook image tag (#73)"
+	commitID := "08f72e2a309beab929d9fd14626071b1a61a47f9"
+
+	tests := []struct {
+		name     string
+		repoURL  string
+		revision string
+		pattern  string
+		repoRes  *v1alpha1.Repository
+		repoErr  error
+
+		expectSubsetOfPaths []string
+		doesNotContainPaths []string
+		expectedError       error
+	}{
+		{
+			name: "pull an invalid revision and test new globbing simple pattern",
+			repoRes: &v1alpha1.Repository{
+				Insecure:              true,
+				InsecureIgnoreHostKey: true,
+				Repo:                  "https://github.com/argoproj/argocd-example-apps/",
+			},
+			repoURL:  "https://github.com/argoproj/argocd-example-apps/",
+			revision: commitID,
+			pattern:  "apps/*.yaml",
+			expectSubsetOfPaths: []string{
+				"apps/Chart.yaml",
+				"apps/values.yaml",
+			},
+			doesNotContainPaths: []string{
+				"apps/templates/helm-guestbook.yaml",
+				"apps/templates/helm-hooks.yaml",
+				"apps/templates/kustomize-guestbook.yaml",
+				"apps/templates/namespaces.yaml",
+				"apps/templates/sync-waves.yaml",
+				"blue-green/.helmignore",
+				"blue-green/Chart.yaml",
+				"blue-green/README.md",
+				"blue-green/templates/NOTES.txt",
+				"blue-green/templates/rollout.yaml",
+				"blue-green/templates/services.yaml",
+				"blue-green/values.yaml",
+				"guestbook/guestbook-ui-deployment.yaml",
+				"guestbook/guestbook-ui-svc.yaml",
+				"kustomize-guestbook/guestbook-ui-deployment.yaml",
+				"kustomize-guestbook/guestbook-ui-svc.yaml",
+				"kustomize-guestbook/kustomization.yaml",
+			},
+		},
+		{
+			name: "pull an invalid revision and test new globbing * pattern",
+			repoRes: &v1alpha1.Repository{
+				Insecure:              true,
+				InsecureIgnoreHostKey: true,
+				Repo:                  "https://github.com/argoproj/argocd-example-apps/",
+			},
+			repoURL:  "https://github.com/argoproj/argocd-example-apps/",
+			revision: commitID,
+			pattern:  "*/*.yaml",
+			expectSubsetOfPaths: []string{
+				"apps/Chart.yaml",
+				"apps/values.yaml",
+				"blue-green/Chart.yaml",
+				"blue-green/values.yaml",
+				"guestbook/guestbook-ui-deployment.yaml",
+				"guestbook/guestbook-ui-svc.yaml",
+				"kustomize-guestbook/guestbook-ui-deployment.yaml",
+				"kustomize-guestbook/guestbook-ui-svc.yaml",
+				"kustomize-guestbook/kustomization.yaml",
+			},
+			doesNotContainPaths: []string{
+				"apps/templates/helm-guestbook.yaml",
+				"apps/templates/helm-hooks.yaml",
+				"apps/templates/kustomize-guestbook.yaml",
+				"apps/templates/namespaces.yaml",
+				"apps/templates/sync-waves.yaml",
+				"blue-green/.helmignore",
+				"blue-green/README.md",
+				"blue-green/templates/NOTES.txt",
+				"blue-green/templates/rollout.yaml",
+				"blue-green/templates/services.yaml",
+			},
+		},
+		{
+			name: "pull an invalid revision and confirm an error is returned",
+			repoRes: &v1alpha1.Repository{
+				Insecure:              true,
+				InsecureIgnoreHostKey: true,
+				Repo:                  "https://github.com/argoproj/argocd-example-apps/",
+			},
+			repoURL:             "https://github.com/argoproj/argocd-example-apps/",
+			revision:            "this-tag-does-not-exist",
+			pattern:             "*",
+			expectSubsetOfPaths: []string{},
+			expectedError:       fmt.Errorf("Error during fetching repo: `git fetch origin this-tag-does-not-exist --tags --force --prune` failed exit status 128: fatal: couldn't find remote ref this-tag-does-not-exist"),
+		},
+		{
+			name: "pull an invalid revision and test new globbing ** pattern",
+			repoRes: &v1alpha1.Repository{
+				Insecure:              true,
+				InsecureIgnoreHostKey: true,
+				Repo:                  "https://github.com/argoproj/argocd-example-apps/",
+			},
+			repoURL:  "https://github.com/argoproj/argocd-example-apps/",
+			revision: commitID,
+			pattern:  "**/*.yaml",
+			expectSubsetOfPaths: []string{
+				"apps/Chart.yaml",
+				"apps/templates/helm-guestbook.yaml",
+				"apps/templates/helm-hooks.yaml",
+				"apps/templates/kustomize-guestbook.yaml",
+				"apps/templates/namespaces.yaml",
+				"apps/templates/sync-waves.yaml",
+				"apps/values.yaml",
+				"blue-green/Chart.yaml",
+				"blue-green/templates/rollout.yaml",
+				"blue-green/templates/services.yaml",
+				"blue-green/values.yaml",
+				"guestbook/guestbook-ui-deployment.yaml",
+				"guestbook/guestbook-ui-svc.yaml",
+				"kustomize-guestbook/guestbook-ui-deployment.yaml",
+				"kustomize-guestbook/guestbook-ui-svc.yaml",
+				"kustomize-guestbook/kustomization.yaml",
+			},
+			doesNotContainPaths: []string{
+				"blue-green/.helmignore",
+				"blue-green/README.md",
+				"blue-green/templates/NOTES.txt",
+			},
+		},
+	}
+
+	for _, cc := range tests {
+
+		// Get all the paths for a repository, and confirm that the expected subset of paths is found (or the expected error is returned)
+		t.Run(cc.name, func(t *testing.T) {
+			argocdRepositoryMock := ArgocdRepositoryMock{mock: &mock.Mock{}}
+
+			argocdRepositoryMock.mock.On("GetRepository", mock.Anything, cc.repoURL).Return(cc.repoRes, cc.repoErr)
+
+			argocd := argoCDService{
+				repositoriesDB: argocdRepositoryMock,
+			}
+
+			getPathsRes, err := argocd.GetFiles(context.Background(), cc.repoURL, cc.revision, cc.pattern, true)
 
 			if cc.expectedError == nil {
 
